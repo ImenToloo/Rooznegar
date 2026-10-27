@@ -55,6 +55,19 @@ import androidx.compose.ui.window.Dialog
 import androidx.lifecycle.Lifecycle
 import androidx.lifecycle.LifecycleEventObserver
 import androidx.lifecycle.compose.LocalLifecycleOwner
+import android.Manifest
+import android.content.pm.PackageManager
+import android.os.Build
+import androidx.activity.compose.rememberLauncherForActivityResult
+import androidx.activity.result.contract.ActivityResultContracts
+import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.verticalScroll
+import androidx.compose.material3.ExperimentalMaterial3Api
+import androidx.compose.material3.Switch
+import androidx.compose.material3.TimePicker
+import androidx.compose.material3.rememberTimePickerState
+import androidx.compose.ui.platform.LocalContext
+import java.time.Instant
 import java.time.LocalDate
 import java.time.temporal.ChronoUnit
 
@@ -96,6 +109,9 @@ private fun Screen(vm: MainViewModel) {
     var picker by remember { mutableStateOf<PickTarget?>(null) }
     var toDelete by remember { mutableStateOf<TaskEntity?>(null) }
     var error by remember { mutableStateOf<String?>(null) }
+    var editing by remember { mutableStateOf<TaskEntity?>(null) }
+    val ctx = LocalContext.current
+    val permLauncher = rememberLauncherForActivityResult(ActivityResultContracts.RequestPermission()) { }
 
     val owner = LocalLifecycleOwner.current
     DisposableEffect(owner) {
@@ -160,9 +176,9 @@ private fun Screen(vm: MainViewModel) {
             items(tasks, key = { it.id }) { t ->
                 Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
                     Checkbox(checked = t.completed, onCheckedChange = { vm.setDone(t.id, it) })
-                    Column(Modifier.weight(1f)) {
+                    Column(Modifier.weight(1f).clickable { editing = t }) {
                         Text(
-                            t.title,
+                            (if (t.priority) "🚩 " else "") + t.title,
                             textDecoration = if (t.completed) TextDecoration.LineThrough else null,
                             color = if (t.completed) MaterialTheme.colorScheme.onSurfaceVariant
                             else MaterialTheme.colorScheme.onSurface
@@ -170,6 +186,14 @@ private fun Screen(vm: MainViewModel) {
                         if (t.originalDate != t.scheduledDate) {
                             Text(
                                 "از ${jalaliDayMonth(LocalDate.parse(t.originalDate))}", fontSize = 12.sp,
+                                color = MaterialTheme.colorScheme.onSurfaceVariant
+                            )
+                        }
+                        val rem = t.reminderAt
+                        if (rem != null && !t.completed) {
+                            val lt = Instant.ofEpochMilli(rem).atZone(TEHRAN).toLocalTime()
+                            Text(
+                                "⏰ " + faTime(lt.hour, lt.minute), fontSize = 12.sp,
                                 color = MaterialTheme.colorScheme.onSurfaceVariant
                             )
                         }
@@ -208,7 +232,7 @@ private fun Screen(vm: MainViewModel) {
                                     .border(1.dp, MaterialTheme.colorScheme.outlineVariant, RoundedCornerShape(14.dp))
                                     .padding(12.dp)
                             ) {
-                                Text(t.title)
+                                Text((if (t.priority) "🚩 " else "") + t.title)
                                 Text(
                                     "از ${jalaliDayMonth(LocalDate.parse(t.scheduledDate))} · ${faNum(late)} روز تأخیر",
                                     fontSize = 12.sp, color = MaterialTheme.colorScheme.onSurfaceVariant
@@ -232,6 +256,22 @@ private fun Screen(vm: MainViewModel) {
                 }
             }
         }
+    }
+
+    editing?.let { t ->
+        EditDialog(
+            t = t, today = today, onDismiss = { editing = null },
+            onSave = { title, prio, date, reminder ->
+                if (reminder != null && Build.VERSION.SDK_INT >= 33 &&
+                    ctx.checkSelfPermission(Manifest.permission.POST_NOTIFICATIONS) != PackageManager.PERMISSION_GRANTED
+                ) {
+                    permLauncher.launch(Manifest.permission.POST_NOTIFICATIONS)
+                }
+                vm.update(t.id, title, prio, date, reminder) { ok ->
+                    if (ok) editing = null else error = "ذخیره انجام نشد."
+                }
+            }
+        )
     }
 
     picker?.let { p ->
@@ -297,6 +337,91 @@ private fun JalaliPicker(start: LocalDate, today: LocalDate, onPick: (LocalDate)
                     }
                 }
                 TextButton(onClick = onDismiss) { Text("بستن") }
+            }
+        }
+    }
+}
+
+
+@Composable
+private fun EditDialog(
+    t: TaskEntity, today: LocalDate, onDismiss: () -> Unit,
+    onSave: (String, Boolean, LocalDate, Long?) -> Unit
+) {
+    var title by remember { mutableStateOf(t.title) }
+    var prio by remember { mutableStateOf(t.priority) }
+    var date by remember { mutableStateOf(LocalDate.parse(t.scheduledDate)) }
+    val old = t.reminderAt?.let { Instant.ofEpochMilli(it).atZone(TEHRAN).toLocalTime() }
+    var remOn by remember { mutableStateOf(t.reminderAt != null) }
+    var hour by remember { mutableStateOf(old?.hour ?: 9) }
+    var minute by remember { mutableStateOf(old?.minute ?: 0) }
+    var pickDate by remember { mutableStateOf(false) }
+    var pickTime by remember { mutableStateOf(false) }
+    var err by remember { mutableStateOf<String?>(null) }
+
+    fun save() {
+        if (title.isBlank()) { err = "عنوان نمی‌تواند خالی باشد."; return }
+        val reminder = if (remOn) date.atTime(hour, minute).atZone(TEHRAN).toInstant().toEpochMilli() else null
+        if (reminder != null && reminder != t.reminderAt && reminder <= System.currentTimeMillis()) {
+            err = "زمان یادآور گذشته است."; return
+        }
+        onSave(title, prio, date, reminder)
+    }
+
+    Dialog(onDismissRequest = onDismiss) {
+        Surface(shape = RoundedCornerShape(20.dp), color = MaterialTheme.colorScheme.surface) {
+            Column(Modifier.padding(16.dp).verticalScroll(rememberScrollState())) {
+                Text("ویرایش کار", style = MaterialTheme.typography.titleMedium)
+                OutlinedTextField(
+                    value = title, onValueChange = { title = it.take(200); err = null },
+                    label = { Text("عنوان") }, modifier = Modifier.fillMaxWidth().padding(top = 8.dp)
+                )
+                Row(Modifier.fillMaxWidth().padding(top = 8.dp), verticalAlignment = Alignment.CenterVertically) {
+                    Text("🚩 مهم (بالاتر نمایش داده شود)", Modifier.weight(1f))
+                    Switch(checked = prio, onCheckedChange = { prio = it })
+                }
+                Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
+                    Text("تاریخ: ${jalaliFull(date)}", Modifier.weight(1f))
+                    TextButton(onClick = { pickDate = true }) { Text("تغییر") }
+                }
+                Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
+                    Text("⏰ یادآور", Modifier.weight(1f))
+                    Switch(checked = remOn, onCheckedChange = { remOn = it; err = null })
+                }
+                if (remOn) {
+                    Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
+                        Text("ساعت ${faTime(hour, minute)}", Modifier.weight(1f))
+                        TextButton(onClick = { pickTime = true }) { Text("تغییر") }
+                    }
+                }
+                err?.let { Text(it, color = MaterialTheme.colorScheme.error, fontSize = 13.sp) }
+                Row(Modifier.fillMaxWidth().padding(top = 8.dp), horizontalArrangement = Arrangement.End) {
+                    TextButton(onClick = onDismiss) { Text("انصراف") }
+                    Button(onClick = { save() }) { Text("ذخیره") }
+                }
+            }
+        }
+    }
+    if (pickDate) {
+        JalaliPicker(start = date, today = today, onPick = { date = it; pickDate = false; err = null }, onDismiss = { pickDate = false })
+    }
+    if (pickTime) {
+        TimeDialog(hour, minute, onOk = { h, m -> hour = h; minute = m; pickTime = false; err = null }, onDismiss = { pickTime = false })
+    }
+}
+
+@OptIn(ExperimentalMaterial3Api::class)
+@Composable
+private fun TimeDialog(h: Int, m: Int, onOk: (Int, Int) -> Unit, onDismiss: () -> Unit) {
+    val st = rememberTimePickerState(initialHour = h, initialMinute = m, is24Hour = true)
+    Dialog(onDismissRequest = onDismiss) {
+        Surface(shape = RoundedCornerShape(20.dp), color = MaterialTheme.colorScheme.surface) {
+            Column(Modifier.padding(16.dp), horizontalAlignment = Alignment.CenterHorizontally) {
+                CompositionLocalProvider(LocalLayoutDirection provides LayoutDirection.Ltr) { TimePicker(state = st) }
+                Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.End) {
+                    TextButton(onClick = onDismiss) { Text("انصراف") }
+                    TextButton(onClick = { onOk(st.hour, st.minute) }) { Text("تأیید") }
+                }
             }
         }
     }

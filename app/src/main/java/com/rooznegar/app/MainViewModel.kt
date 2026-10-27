@@ -16,7 +16,7 @@ import java.time.LocalDate
 
 @OptIn(ExperimentalCoroutinesApi::class)
 class MainViewModel(app: Application) : AndroidViewModel(app) {
-    private val repo = TaskRepository(AppDb.get(app))
+    private val repo = TaskRepository(AppDb.get(app), AlarmScheduler(app))
     private val prefs = app.getSharedPreferences("prefs", Context.MODE_PRIVATE)
 
     val today = MutableStateFlow(todayTehran())
@@ -67,6 +67,13 @@ class MainViewModel(app: Application) : AndroidViewModel(app) {
     fun setDone(id: String, done: Boolean) { viewModelScope.launch { runCatching { repo.setDone(id, done) } } }
     fun delete(id: String) { viewModelScope.launch { runCatching { repo.delete(id) } } }
     fun snooze(id: String) { viewModelScope.launch { runCatching { repo.snooze(id, today.value.toString()) } } }
+
+    fun update(id: String, title: String, priority: Boolean, date: LocalDate, reminderAt: Long?, cb: (Boolean) -> Unit) {
+        viewModelScope.launch {
+            val ok = runCatching { repo.update(id, title, priority, date.toString(), reminderAt) }.getOrDefault(false)
+            cb(ok)
+        }
+    }
 
     fun move(t: TaskEntity, to: LocalDate) {
         viewModelScope.launch {

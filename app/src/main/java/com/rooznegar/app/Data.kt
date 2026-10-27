@@ -12,6 +12,8 @@ import androidx.room.Query
 import androidx.room.Room
 import androidx.room.RoomDatabase
 import androidx.room.Update
+import androidx.room.migration.Migration
+import androidx.sqlite.db.SupportSQLiteDatabase
 import kotlinx.coroutines.flow.Flow
 
 /** Dates are stored as ISO strings (yyyy-MM-dd), a plain calendar day with no time zone. */
@@ -26,7 +28,10 @@ data class TaskEntity(
     val completedAt: Long? = null,
     val sortOrder: Long = 0,
     val archived: Boolean = false,
-    val snoozedOn: String? = null
+    val snoozedOn: String? = null,
+    val priority: Boolean = false,
+    /** Absolute reminder instant in epoch millis (unaffected by time zone changes). */
+    val reminderAt: Long? = null
 )
 
 @Entity(
@@ -45,14 +50,17 @@ data class RescheduleEntity(
 
 @Dao
 interface TaskDao {
-    @Query("SELECT * FROM tasks WHERE scheduledDate = :d AND archived = 0 ORDER BY completed ASC, sortOrder ASC")
+    @Query("SELECT * FROM tasks WHERE scheduledDate = :d AND archived = 0 ORDER BY completed ASC, priority DESC, sortOrder ASC")
     fun observeDay(d: String): Flow<List<TaskEntity>>
 
     @Query(
         "SELECT * FROM tasks WHERE completed = 0 AND archived = 0 AND scheduledDate < :today " +
-            "AND (snoozedOn IS NULL OR snoozedOn != :today) ORDER BY scheduledDate ASC, sortOrder ASC"
+            "AND (snoozedOn IS NULL OR snoozedOn != :today) ORDER BY scheduledDate ASC, priority DESC, sortOrder ASC"
     )
     fun observeOverdue(today: String): Flow<List<TaskEntity>>
+
+    @Query("SELECT * FROM tasks WHERE reminderAt IS NOT NULL AND completed = 0 AND archived = 0 AND reminderAt > :now")
+    suspend fun upcomingReminders(now: Long): List<TaskEntity>
 
     @Insert suspend fun insert(t: TaskEntity)
     @Update suspend fun update(t: TaskEntity)
@@ -63,7 +71,14 @@ interface TaskDao {
     @Insert(onConflict = OnConflictStrategy.IGNORE) suspend fun insertHistory(h: RescheduleEntity): Long
 }
 
-@Database(entities = [TaskEntity::class, RescheduleEntity::class], version = 1, exportSchema = false)
+val MIGRATION_1_2 = object : Migration(1, 2) {
+    override fun migrate(db: SupportSQLiteDatabase) {
+        db.execSQL("ALTER TABLE tasks ADD COLUMN priority INTEGER NOT NULL DEFAULT 0")
+        db.execSQL("ALTER TABLE tasks ADD COLUMN reminderAt INTEGER")
+    }
+}
+
+@Database(entities = [TaskEntity::class, RescheduleEntity::class], version = 2, exportSchema = false)
 abstract class AppDb : RoomDatabase() {
     abstract fun dao(): TaskDao
 
@@ -71,6 +86,7 @@ abstract class AppDb : RoomDatabase() {
         @Volatile private var instance: AppDb? = null
         fun get(c: Context): AppDb = instance ?: synchronized(this) {
             instance ?: Room.databaseBuilder(c.applicationContext, AppDb::class.java, "rooznegar.db")
+                .addMigrations(MIGRATION_1_2)
                 .build().also { instance = it }
         }
     }

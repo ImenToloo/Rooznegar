@@ -55,3 +55,9 @@ fun jalaliMonthDays(anyDay: LocalDate): List<LocalDate> {
     }
     return out
 }
+
+fun faTime(h: Int, m: Int): String {
+    val f = NumberFormat.getInstance(Locale("fa", "IR"))
+    f.minimumIntegerDigits = 2
+    return f.format(h) + ":" + f.format(m)
+}

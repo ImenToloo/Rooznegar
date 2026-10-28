@@ -1,0 +1,184 @@
+<!DOCTYPE html>
+<html lang="fa" dir="rtl">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>روزنگار</title>
+<link rel="manifest" href="manifest.webmanifest">
+<link rel="apple-touch-icon" href="apple-touch-icon.png">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-title" content="روزنگار">
+<meta name="apple-mobile-web-app-status-bar-style" content="default">
+<meta name="theme-color" content="#0b5a3f">
+<style>
+:root{--bg:#FAFAFC;--card:#fff;--pri:#5146A8;--onpri:#fff;--tx:#191A22;--tx2:#777B89;--ln:#ECECF2;--warn:#B7791F;--red:#D93025}
+@media (prefers-color-scheme:dark){:root:not([data-theme=light]){--bg:#111318;--card:#191C23;--pri:#A99CFF;--onpri:#111318;--tx:#F3F3F7;--tx2:#A0A4B2;--ln:#292D37;--warn:#E5B567}}
+:root[data-theme=dark]{--bg:#111318;--card:#191C23;--pri:#A99CFF;--onpri:#111318;--tx:#F3F3F7;--tx2:#A0A4B2;--ln:#292D37;--warn:#E5B567}
+*{box-sizing:border-box;-webkit-tap-highlight-color:transparent}
+html,body{margin:0;background:var(--bg);color:var(--tx);font-family:system-ui,-apple-system,"Geeza Pro",Tahoma,sans-serif;font-size:16px}
+main{max-width:520px;margin:0 auto;padding:calc(10px + env(safe-area-inset-top,0px)) 16px calc(30px + env(safe-area-inset-bottom,0px))}
+button{font:inherit;color:inherit;background:none;border:0;cursor:pointer;min-width:44px;min-height:44px;border-radius:12px}
+input{font:inherit;color:var(--tx)}
+.top{display:flex;align-items:center;justify-content:space-between}
+.hd{text-align:center;flex:1;cursor:pointer}.hd b{display:block;font-size:26px}.hd small{color:var(--tx2);font-size:14px;direction:ltr;display:block}
+.ic{font-size:15px;color:var(--tx2)}.pri{color:var(--pri)}
+.add{display:flex;gap:8px;background:var(--card);border:1px solid var(--ln);border-radius:16px;padding:6px 12px 6px 6px;margin:12px 0 18px}
+.add input{flex:1;border:0;background:none;min-width:0;padding:0 8px;outline:0}
+.add button{background:var(--pri);color:var(--onpri);font-size:22px}
+h2{font-size:15px;font-weight:500;color:var(--tx2);margin:0 4px 8px}
+.list{background:var(--card);border:1px solid var(--ln);border-radius:16px}
+.t{display:flex;align-items:center;gap:4px;padding:2px 4px;border-bottom:1px solid var(--ln)}.t:last-child{border:0}
+.cb{display:grid;place-items:center}.cb i{width:24px;height:24px;border:2px solid var(--tx2);border-radius:8px;display:grid;place-items:center;font-style:normal;color:var(--onpri);font-size:15px}
+.done .cb i{background:var(--pri);border-color:var(--pri)}
+.t span{flex:1;padding:8px 0;overflow-wrap:anywhere;font-weight:500;cursor:pointer}.done span{text-decoration:line-through;color:var(--tx2)}
+.t em{font-style:normal;font-size:12px;color:var(--warn);margin-inline-start:6px}
+.empty{padding:24px;text-align:center;color:var(--tx2)}
+.ov{position:fixed;inset:0;background:rgba(0,0,0,.45);display:flex;align-items:flex-end;justify-content:center;z-index:9}
+.sh{background:var(--bg);width:100%;max-width:520px;max-height:88%;overflow:auto;border-radius:22px 22px 0 0;padding:18px 16px calc(18px + env(safe-area-inset-bottom,0px))}
+.sh h3{margin:0 0 4px}.sh p{margin:0 0 12px;color:var(--tx2);font-size:14px}
+.oc{background:var(--card);border:1px solid var(--ln);border-radius:14px;padding:12px;margin-bottom:10px}.oc small{color:var(--tx2)}
+.bs{display:flex;flex-wrap:wrap;gap:6px;margin-top:8px}.bs button{border:1px solid var(--ln);padding:0 12px;min-height:40px;font-size:14px}
+.bs .p{background:var(--pri);color:var(--onpri);border-color:var(--pri)}
+.f{display:flex;align-items:center;justify-content:space-between;gap:8px;margin:10px 0}
+.f input[type=text],.f input[type=time]{background:var(--card);border:1px solid var(--ln);border-radius:10px;padding:8px;min-height:40px}
+.f input[type=text]{width:100%}
+.err{color:var(--red);font-size:13px}
+.cal{display:grid;grid-template-columns:repeat(7,1fr);gap:2px;text-align:center}.cal button{min-width:0;min-height:42px;padding:0;position:relative}
+.cal .w{font-size:12px;color:var(--tx2);padding:6px 0}.cal .n{font-size:11px;color:var(--pri);position:absolute;bottom:0;left:0;right:0}
+.cal .tdy{border:1px solid var(--pri)}.cal .sel{background:var(--pri);color:var(--onpri)}.cal .sel .n{color:var(--onpri)}
+.nav{display:flex;justify-content:space-between;align-items:center;margin-bottom:8px}
+.foot{margin-top:22px;display:flex;gap:8px;justify-content:center;flex-wrap:wrap}.foot button{border:1px solid var(--ln);font-size:13px;padding:0 12px}
+.hint{margin-top:14px;font-size:13px;color:var(--tx2);text-align:center}
+</style>
+</head>
+<body>
+<main>
+  <div class="top"><button class="ic" id="thm" aria-label="تغییر حالت نمایش"></button><div class="hd" id="hd" role="button" tabindex="0"><b id="jd"></b><small id="gd"></small></div><button class="pri" id="nx" aria-label="روز بعد" style="font-size:22px">‹</button></div>
+  <div class="top"><span style="width:44px"></span><button class="pri" id="td" style="font-size:14px">امروز</button><button class="pri" id="pv" aria-label="روز قبل" style="font-size:22px">›</button></div>
+  <div class="add"><input id="in" placeholder="افزودن کار جدید..." maxlength="200" enterkeyhint="done"><button id="ad" aria-label="افزودن">+</button></div>
+  <h2 id="ct"></h2><div class="list" id="ls"></div>
+  <div class="foot"><button id="ex">خروجی پشتیبان</button><button id="im">بازیابی پشتیبان</button><input type="file" id="fi" accept=".json,application/json" hidden></div>
+  <div class="hint" id="hint"></div>
+</main>
+<div id="ovl"></div>
+<script>
+const TZ='Asia/Tehran',$=id=>document.getElementById(id);
+const esc=s=>String(s).replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+const iso=d=>d.toISOString().slice(0,10),P=s=>new Date(s+'T12:00:00Z');
+const add=(s,n)=>{const d=P(s);d.setUTCDate(d.getUTCDate()+n);return iso(d)};
+const nowD=()=>new Intl.DateTimeFormat('en-CA',{timeZone:TZ}).format(new Date());
+const jp=s=>{const o={};new Intl.DateTimeFormat('en-u-ca-persian-nu-latn',{timeZone:'UTC',year:'numeric',month:'numeric',day:'numeric'}).formatToParts(P(s)).forEach(p=>o[p.type]=p.value);return{y:+(o.year||o.relatedYear),m:+o.month,d:+o.day}};
+const fa=(s,o)=>new Intl.DateTimeFormat('fa-IR-u-ca-persian',{timeZone:'UTC',...o}).format(P(s));
+const gr=s=>new Intl.DateTimeFormat('en-GB',{timeZone:'UTC',day:'numeric',month:'long',year:'numeric'}).format(P(s));
+const fn=n=>n.toLocaleString('fa-IR'),fd=s=>String(s).replace(/\d/g,d=>'۰۱۲۳۴۵۶۷۸۹'[d]);
+const first=s=>add(s,1-jp(s).d);
+let db={tasks:[],skip:{},theme:'auto'},cur=nowD(),lastT=cur;
+try{const r=localStorage.getItem('rooznegar');if(r)db=Object.assign(db,JSON.parse(r))}catch(e){}
+const save=()=>{try{localStorage.setItem('rooznegar',JSON.stringify(db));return true}catch(e){alert('ذخیره‌سازی در این مرورگر ممکن نیست.');return false}};
+const uid=()=>Date.now().toString(36)+Math.random().toString(36).slice(2,7);
+const find=id=>db.tasks.find(t=>t.id===id);
+function theme(){const r=document.documentElement;db.theme==='auto'?r.removeAttribute('data-theme'):r.setAttribute('data-theme',db.theme);$('thm').textContent={auto:'خودکار',light:'روشن',dark:'تاریک'}[db.theme]}
+$('thm').onclick=()=>{db.theme={auto:'light',light:'dark',dark:'auto'}[db.theme];save();theme()};
+function render(){
+  $('jd').textContent=fa(cur,{day:'numeric',month:'long',year:'numeric'});$('gd').textContent=gr(cur);
+  $('td').style.visibility=cur===nowD()?'hidden':'visible';
+  const L=db.tasks.filter(t=>t.date===cur&&!t.archived).sort((a,b)=>a.done-b.done||(b.pri?1:0)-(a.pri?1:0)||a.order-b.order);
+  $('ct').textContent=(cur===nowD()?'کارهای امروز':'کارهای این روز')+' ('+fn(L.length)+')';
+  $('ls').innerHTML=L.length?L.map(t=>`<div class="t ${t.done?'done':''}"><button class="cb" data-c="${t.id}" role="checkbox" aria-checked="${!!t.done}" aria-label="انجام شد"><i>${t.done?'✓':''}</i></button><span data-e="${t.id}">${t.pri?'🚩 ':''}${esc(t.title)}${t.rem&&!t.done?`<em>⏰ ${fd(t.rem)}</em>`:''}${t.orig!==t.date?`<em>از ${fa(t.orig,{day:'numeric',month:'long'})}</em>`:''}</span></div>`).join(''):'<div class="empty">برای این روز کاری ثبت نشده است.</div>';
+}
+$('ls').onclick=e=>{
+  const c=e.target.closest('[data-c]'),x=e.target.closest('[data-e]');
+  if(c){const t=find(c.dataset.c);t.done=!t.done;t.doneAt=t.done?Date.now():null;if(!save())t.done=!t.done;render()}
+  if(x)edit(x.dataset.e);
+};
+function addTask(){
+  const v=$('in').value.trim();if(!v)return;
+  const o=Math.max(0,...db.tasks.filter(t=>t.date===cur).map(t=>t.order))+1;
+  db.tasks.push({id:uid(),title:v,done:false,orig:cur,date:cur,order:o,created:Date.now(),hist:[]});
+  if(save()){$('in').value='';render();$('in').focus()}else db.tasks.pop();
+}
+$('ad').onclick=addTask;$('in').onkeydown=e=>{if(e.key==='Enter')addTask()};
+$('nx').onclick=()=>{cur=add(cur,1);render()};$('pv').onclick=()=>{cur=add(cur,-1);render()};$('td').onclick=()=>{cur=nowD();render()};
+$('hd').onclick=()=>pick(cur,d=>{cur=d;render()});$('hd').onkeydown=e=>{if(e.key==='Enter')pick(cur,d=>{cur=d;render()})};
+
+function pick(sel,cb){
+  let m=first(sel);const o=document.createElement('div');o.className='ov';o.style.zIndex=20;
+  const draw=()=>{
+    const days=[],mm=jp(m).m;let d=m;while(jp(d).m===mm){days.push(d);d=add(d,1)}
+    const off=(P(m).getUTCDay()+1)%7,T=nowD(),cnt=x=>db.tasks.filter(t=>t.date===x&&!t.done&&!t.archived).length;
+    o.innerHTML=`<div class="sh"><div class="nav"><button data-n="-1" aria-label="ماه قبل">›</button><b>${fa(m,{month:'long',year:'numeric'})}</b><button data-n="1" aria-label="ماه بعد">‹</button></div><div class="cal">${'شیدسچپج'.split('').map(w=>`<div class="w">${w}</div>`).join('')}${'<div></div>'.repeat(off)}${days.map(x=>{const c=cnt(x);return `<button data-p="${x}" class="${x===T?'tdy':''} ${x===sel?'sel':''}">${fa(x,{day:'numeric'})}${c?`<span class="n">${fn(c)}</span>`:''}</button>`}).join('')}</div><div class="bs"><button data-x>بستن</button></div></div>`;
+  };
+  o.onclick=e=>{const n=e.target.closest('[data-n]'),p=e.target.closest('[data-p]');
+    if(n){m=first(n.dataset.n==='1'?add(m,32):add(m,-1));draw()}
+    else if(p){o.remove();cb(p.dataset.p)}else if(e.target===o||e.target.closest('[data-x]'))o.remove()};
+  draw();document.body.appendChild(o);
+}
+/* edit sheet */
+function edit(id){
+  const t=find(id);if(!t)return;let d=t.date;
+  const o=document.createElement('div');o.className='ov';
+  o.innerHTML=`<div class="sh"><h3>ویرایش کار</h3>
+  <div class="f"><input type="text" id="e-t" maxlength="200" value="${esc(t.title)}"></div>
+  <label class="f"><span>🚩 مهم (بالاتر نمایش داده شود)</span><input type="checkbox" id="e-p" ${t.pri?'checked':''}></label>
+  <div class="f"><span id="e-d"></span><button class="pri" id="e-dc">تغییر تاریخ</button></div>
+  <div class="f"><span>⏰ ساعت یادآور</span><input type="time" id="e-r" value="${t.rem||''}"></div>
+  <div class="err" id="e-err"></div>
+  <div class="bs"><button class="p" id="e-s">ذخیره</button><button id="e-ics">افزودن به تقویم آیفون</button><button id="e-x">انصراف</button><button id="e-del" style="color:var(--red)">حذف</button></div></div>`;
+  document.body.appendChild(o);
+  const sd=()=>o.querySelector('#e-d').textContent='تاریخ: '+fa(d,{day:'numeric',month:'long',year:'numeric'});sd();
+  const q=s=>o.querySelector(s);
+  q('#e-dc').onclick=()=>pick(d,x=>{d=x;sd()});
+  q('#e-x').onclick=()=>o.remove();
+  q('#e-del').onclick=()=>{if(confirm('این کار حذف شود؟')){db.tasks=db.tasks.filter(x=>x.id!==id);save();o.remove();render()}};
+  const apply=()=>{const ti=q('#e-t').value.trim();if(!ti){q('#e-err').textContent='عنوان نمی‌تواند خالی باشد.';return false}
+    if(d!==t.date){t.hist.push({k:id+'|'+t.date,from:t.date,to:d,at:Date.now(),why:'edit'});t.order=Math.max(0,...db.tasks.filter(x=>x.date===d).map(x=>x.order))+1;t.date=d;delete db.skip[id]}
+    t.title=ti;t.pri=q('#e-p').checked;t.rem=q('#e-r').value||null;return save()};
+  q('#e-s').onclick=()=>{if(apply()){o.remove();render()}};
+  q('#e-ics').onclick=()=>{if(!q('#e-r').value){q('#e-err').textContent='اول ساعت یادآور را انتخاب کنید.';return}if(apply()){render();ics(t)}};
+}
+function ics(t){
+  const [y,mo,da]=t.date.split('-').map(Number),[h,mi]=t.rem.split(':').map(Number);
+  const f=ms=>new Date(ms).toISOString().replace(/[-:]/g,'').slice(0,15)+'Z';
+  const st=Date.UTC(y,mo-1,da,h,mi)-210*60000; // Tehran = UTC+3:30
+  const s=['BEGIN:VCALENDAR','VERSION:2.0','PRODID:-//Rooznegar//FA','BEGIN:VEVENT','UID:'+t.id+'@rooznegar','DTSTAMP:'+f(Date.now()),'DTSTART:'+f(st),'DTEND:'+f(st+30*60000),'SUMMARY:'+t.title.replace(/[\\;,]/g,m=>'\\'+m).replace(/\n/g,' '),'BEGIN:VALARM','ACTION:DISPLAY','DESCRIPTION:'+'یادآوری','TRIGGER:PT0S','END:VALARM','END:VEVENT','END:VCALENDAR'].join('\r\n');
+  const a=document.createElement('a');a.href=URL.createObjectURL(new Blob([s],{type:'text/calendar'}));a.download='rooznegar-'+t.id+'.ics';document.body.appendChild(a);a.click();a.remove();
+}
+/* rollover */
+const overdue=()=>{const T=nowD();return db.tasks.filter(t=>!t.done&&!t.archived&&t.date<T&&db.skip[t.id]!==T).sort((a,b)=>a.date<b.date?-1:1)};
+function move(id,to){const t=find(id);if(!t||t.done||t.date===to)return false;const old=t.date;
+  t.hist.push({k:id+'|'+old,from:old,to,at:Date.now(),why:'rollover'});t.date=to;t.order=Math.max(0,...db.tasks.filter(x=>x.date===to).map(x=>x.order))+1;
+  if(!save()){t.date=old;t.hist.pop();return false}return true}
+let ovOpen=false;
+function checkOverdue(){
+  const T=nowD();if(T!==lastT){lastT=T;if(cur<T)cur=T}
+  if(!overdue().length||ovOpen){render();return}
+  ovOpen=true;const o=document.createElement('div');o.className='ov';
+  const draw=()=>{const L=overdue();if(!L.length){o.remove();ovOpen=false;render();return}
+    o.innerHTML=`<div class="sh"><h3>${fn(L.length)} کار باقی مانده است</h3><p>برای هر کار تاریخ جدید را خودتان تعیین کنید.</p>${L.map(t=>`<div class="oc"><b>${t.pri?'🚩 ':''}${esc(t.title)}</b><br><small>از ${fa(t.date,{day:'numeric',month:'long'})} · ${fn(Math.round((P(T)-P(t.date))/864e5))} روز تأخیر</small><div class="bs"><button class="p" data-m="${t.id}" data-to="${T}">انتقال به امروز</button><button data-m="${t.id}" data-to="${add(T,1)}">انتقال به فردا</button><button data-k="${t.id}">انتخاب تاریخ</button><button data-s="${t.id}">فعلاً نه</button></div></div>`).join('')}<div class="bs"><button data-x>بستن</button></div></div>`};
+  o.onclick=e=>{const m=e.target.closest('[data-m]'),k=e.target.closest('[data-k]'),s=e.target.closest('[data-s]');
+    if(m){move(m.dataset.m,m.dataset.to);draw()}
+    if(k){const id=k.dataset.k;pick(T,d=>{move(id,d);draw()})}
+    if(s){db.skip[s.dataset.s]=T;save();draw()}
+    if(e.target.closest('[data-x]')){o.remove();ovOpen=false;render()}};
+  draw();document.body.appendChild(o);render();
+}
+document.addEventListener('visibilitychange',()=>{if(!document.hidden)checkOverdue()});
+setInterval(()=>{if(nowD()!==lastT)checkOverdue()},30000);
+/* backup */
+$('ex').onclick=()=>{const a=document.createElement('a');a.href=URL.createObjectURL(new Blob([JSON.stringify({v:1,tasks:db.tasks},null,1)],{type:'application/json'}));a.download='rooznegar-backup-'+nowD()+'.json';document.body.appendChild(a);a.click();a.remove()};
+$('im').onclick=()=>$('fi').click();
+$('fi').onchange=async e=>{const f=e.target.files[0];if(!f)return;
+  try{const j=JSON.parse(await f.text());if(!Array.isArray(j.tasks))throw 0;
+    const ids=new Set(db.tasks.map(t=>t.id));let n=0,sk=0;
+    j.tasks.forEach(t=>{if(t&&t.id&&t.title&&/^\d{4}-\d\d-\d\d$/.test(t.date)){if(ids.has(t.id))sk++;else{db.tasks.push(Object.assign({hist:[],order:0,orig:t.date},t));n++}}else sk++});
+    save();render();alert(fn(n)+' کار وارد شد، '+fn(sk)+' مورد تکراری یا نامعتبر نادیده گرفته شد.')}
+  catch(_){alert('فایل پشتیبان معتبر نیست؛ اطلاعات فعلی تغییری نکرد.')}e.target.value=''};
+/* install hint */
+if(/iphone|ipad/i.test(navigator.userAgent)&&!navigator.standalone)$('hint').textContent='برای نصب: دکمه‌ی Share در Safari ← Add to Home Screen';
+if('serviceWorker' in navigator)navigator.serviceWorker.register('sw.js').catch(()=>{});
+try{navigator.storage&&navigator.storage.persist&&navigator.storage.persist()}catch(e){}
+theme();render();checkOverdue();
+</script>
+</body>
+</html>

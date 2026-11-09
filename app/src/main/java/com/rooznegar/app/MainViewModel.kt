@@ -68,10 +68,17 @@ class MainViewModel(app: Application) : AndroidViewModel(app) {
     fun delete(id: String) { viewModelScope.launch { runCatching { repo.delete(id) } } }
     fun snooze(id: String) { viewModelScope.launch { runCatching { repo.snooze(id, today.value.toString()) } } }
 
-    fun update(id: String, title: String, priority: Boolean, date: LocalDate, reminderAt: Long?, cb: (Boolean) -> Unit) {
+    fun update(
+        id: String, title: String, priority: Boolean, date: LocalDate, reminderAt: Long?,
+        cb: (Boolean, String?) -> Unit
+    ) {
         viewModelScope.launch {
-            val ok = runCatching { repo.update(id, title, priority, date.toString(), reminderAt) }.getOrDefault(false)
-            cb(ok)
+            val r = try {
+                repo.update(id, title, priority, date.toString(), reminderAt)
+            } catch (e: Throwable) {
+                UpdateResult(false, "ذخیره نشد (" + e.javaClass.simpleName + ": " + e.message + ")")
+            }
+            cb(r.ok, r.warn)
         }
     }
 

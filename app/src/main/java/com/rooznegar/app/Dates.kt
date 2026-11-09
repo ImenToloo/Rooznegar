@@ -12,9 +12,6 @@ import java.time.format.DateTimeFormatter
 import java.util.Date
 import java.util.Locale
 
-val TEHRAN: ZoneId = ZoneId.of("Asia/Tehran")
-fun todayTehran(): LocalDate = LocalDate.now(TEHRAN)
-
 private val faLoc = ULocale("fa_IR@calendar=persian")
 private val utc: TimeZone = TimeZone.getTimeZone("UTC")
 

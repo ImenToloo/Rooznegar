@@ -109,6 +109,7 @@ private fun Screen(vm: MainViewModel) {
     var picker by remember { mutableStateOf<PickTarget?>(null) }
     var toDelete by remember { mutableStateOf<TaskEntity?>(null) }
     var error by remember { mutableStateOf<String?>(null) }
+    var notice by remember { mutableStateOf<String?>(null) }
     var editing by remember { mutableStateOf<TaskEntity?>(null) }
     val ctx = LocalContext.current
     val permLauncher = rememberLauncherForActivityResult(ActivityResultContracts.RequestPermission()) { }
@@ -162,6 +163,7 @@ private fun Screen(vm: MainViewModel) {
             Button(onClick = { submit() }, Modifier.padding(start = 8.dp)) { Text("+") }
         }
         error?.let { Text(it, color = MaterialTheme.colorScheme.error, fontSize = 13.sp) }
+        notice?.let { Text(it, color = MaterialTheme.colorScheme.primary, fontSize = 13.sp) }
         Text(
             (if (sel == today) "کارهای امروز" else "کارهای این روز") + " (${faNum(tasks.size)})",
             color = MaterialTheme.colorScheme.onSurfaceVariant, modifier = Modifier.padding(vertical = 8.dp)
@@ -261,14 +263,17 @@ private fun Screen(vm: MainViewModel) {
     editing?.let { t ->
         EditDialog(
             t = t, today = today, onDismiss = { editing = null },
-            onSave = { title, prio, date, reminder ->
+            onSave = { title, prio, date, reminder, fail ->
                 if (reminder != null && Build.VERSION.SDK_INT >= 33 &&
                     ctx.checkSelfPermission(Manifest.permission.POST_NOTIFICATIONS) != PackageManager.PERMISSION_GRANTED
                 ) {
                     permLauncher.launch(Manifest.permission.POST_NOTIFICATIONS)
                 }
-                vm.update(t.id, title, prio, date, reminder) { ok ->
-                    if (ok) editing = null else error = "ذخیره انجام نشد."
+                vm.update(t.id, title, prio, date, reminder) { ok, warn ->
+                    if (ok) {
+                        editing = null; error = warn
+                        notice = if (reminder != null && warn == null) "یادآور با موفقیت تنظیم شد." else null
+                    } else fail(warn ?: "ذخیره انجام نشد.")
                 }
             }
         )
@@ -346,7 +351,7 @@ private fun JalaliPicker(start: LocalDate, today: LocalDate, onPick: (LocalDate)
 @Composable
 private fun EditDialog(
     t: TaskEntity, today: LocalDate, onDismiss: () -> Unit,
-    onSave: (String, Boolean, LocalDate, Long?) -> Unit
+    onSave: (String, Boolean, LocalDate, Long?, (String?) -> Unit) -> Unit
 ) {
     var title by remember { mutableStateOf(t.title) }
     var prio by remember { mutableStateOf(t.priority) }
@@ -365,7 +370,7 @@ private fun EditDialog(
         if (reminder != null && reminder != t.reminderAt && reminder <= System.currentTimeMillis()) {
             err = "زمان یادآور گذشته است."; return
         }
-        onSave(title, prio, date, reminder)
+        onSave(title, prio, date, reminder) { msg -> err = msg }
     }
 
     Dialog(onDismissRequest = onDismiss) {

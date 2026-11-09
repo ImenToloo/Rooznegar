@@ -31,15 +31,26 @@ class AlarmScheduler(context: Context) {
 
     fun cancel(id: String) { am.cancel(pending(id)) }
 
-    fun schedule(t: TaskEntity) {
-        cancel(t.id)
-        val at = t.reminderAt ?: return
-        if (t.completed || t.archived || at <= System.currentTimeMillis()) return
-        val show = PendingIntent.getActivity(
-            ctx, 0, Intent(ctx, MainActivity::class.java),
-            PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE
-        )
-        am.setAlarmClock(AlarmManager.AlarmClockInfo(at, show), pending(t.id))
+    /** Returns null on success, or a short Persian message describing a problem (never throws). */
+    fun schedule(t: TaskEntity): String? {
+        return try {
+            cancel(t.id)
+            val at = t.reminderAt ?: return null
+            if (t.completed || t.archived || at <= System.currentTimeMillis()) return null
+            val show = PendingIntent.getActivity(
+                ctx, 0, Intent(ctx, MainActivity::class.java),
+                PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE
+            )
+            try {
+                am.setAlarmClock(AlarmManager.AlarmClockInfo(at, show), pending(t.id))
+                null
+            } catch (e: SecurityException) {
+                am.setAndAllowWhileIdle(AlarmManager.RTC_WAKEUP, at, pending(t.id))
+                "اندروید زمان دقیق را اجازه نداد؛ یادآور ممکن است چند دقیقه دیرتر بیاید."
+            }
+        } catch (e: Throwable) {
+            "ذخیره شد ولی تنظیم یادآور ممکن نشد (" + e.javaClass.simpleName + ": " + e.message + ")"
+        }
     }
 }
 

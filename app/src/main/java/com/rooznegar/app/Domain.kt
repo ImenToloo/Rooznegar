@@ -3,7 +3,13 @@ package com.rooznegar.app
 import androidx.room.withTransaction
 import java.time.Instant
 import java.time.LocalDate
+import java.time.ZoneId
 import java.util.UUID
+
+val TEHRAN: ZoneId = ZoneId.of("Asia/Tehran")
+fun todayTehran(): LocalDate = LocalDate.now(TEHRAN)
+
+class UpdateResult(val ok: Boolean, val warn: String?)
 
 object Rollover {
     /** True when an unfinished task from a past day still needs the user's decision today. */
@@ -63,9 +69,9 @@ class TaskRepository(private val db: AppDb, private val scheduler: AlarmSchedule
     }
 
     /** Edits title, priority, date and reminder in one transaction; a date change is logged in the history. */
-    suspend fun update(id: String, title: String, priority: Boolean, date: String, reminderAt: Long?): Boolean {
+    suspend fun update(id: String, title: String, priority: Boolean, date: String, reminderAt: Long?): UpdateResult {
         val clean = title.trim().take(200)
-        if (clean.isEmpty()) return false
+        if (clean.isEmpty()) return UpdateResult(false, "عنوان نمی‌تواند خالی باشد.")
         val n = db.withTransaction {
             val t = dao.get(id) ?: return@withTransaction null
             var order = t.sortOrder
@@ -85,9 +91,8 @@ class TaskRepository(private val db: AppDb, private val scheduler: AlarmSchedule
             )
             dao.update(u)
             u
-        } ?: return false
-        scheduler.schedule(n)
-        return true
+        } ?: return UpdateResult(false, "این کار دیگر وجود ندارد.")
+        return UpdateResult(true, scheduler.schedule(n))
     }
 
     /**

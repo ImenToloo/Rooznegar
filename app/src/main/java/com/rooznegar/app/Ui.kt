@@ -154,7 +154,7 @@ private fun Screen(vm: MainViewModel) {
         }
         Row(Modifier.fillMaxWidth().padding(vertical = 8.dp), verticalAlignment = Alignment.CenterVertically) {
             OutlinedTextField(
-                value = text, onValueChange = { text = it.take(200) },
+                value = text, onValueChange = { text = it.take(200); error = null; notice = null },
                 placeholder = { Text("افزودن کار جدید...") }, singleLine = true,
                 modifier = Modifier.weight(1f),
                 keyboardOptions = KeyboardOptions(imeAction = ImeAction.Done),

@@ -29,7 +29,7 @@ fun jalaliMonthYear(d: LocalDate) = fmt(d, "MMMM y")
 fun jalaliDayMonth(d: LocalDate) = fmt(d, "d MMMM")
 fun jalaliDay(d: LocalDate) = fmt(d, "d")
 fun gregorian(d: LocalDate): String =
-    d.format(DateTimeFormatter.ofPattern("d MMMM yyyy", Locale.ENGLISH))
+    "\u2066" + d.format(DateTimeFormatter.ofPattern("d MMMM yyyy", Locale.ENGLISH)) + "\u2069"
 
 fun faNum(n: Int): String = NumberFormat.getInstance(Locale("fa", "IR")).format(n)
 

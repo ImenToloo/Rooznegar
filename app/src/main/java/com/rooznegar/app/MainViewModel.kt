@@ -31,6 +31,9 @@ class MainViewModel(app: Application) : AndroidViewModel(app) {
         .flatMapLatest { repo.overdue(it.toString()) }
         .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), emptyList())
 
+    val allTasks: StateFlow<List<TaskEntity>> = repo.all()
+        .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), emptyList())
+
     init {
         viewModelScope.launch {
             while (true) {

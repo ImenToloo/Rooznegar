@@ -67,6 +67,7 @@ import androidx.compose.material3.Switch
 import androidx.compose.material3.TimePicker
 import androidx.compose.material3.rememberTimePickerState
 import androidx.compose.ui.platform.LocalContext
+import androidx.activity.compose.BackHandler
 import java.time.Instant
 import java.time.LocalDate
 import java.time.temporal.ChronoUnit
@@ -110,6 +111,8 @@ private fun Screen(vm: MainViewModel) {
     var toDelete by remember { mutableStateOf<TaskEntity?>(null) }
     var error by remember { mutableStateOf<String?>(null) }
     var notice by remember { mutableStateOf<String?>(null) }
+    var showAll by remember { mutableStateOf(false) }
+    BackHandler(enabled = showAll) { showAll = false }
     var editing by remember { mutableStateOf<TaskEntity?>(null) }
     val ctx = LocalContext.current
     val permLauncher = rememberLauncherForActivityResult(ActivityResultContracts.RequestPermission()) { }
@@ -128,7 +131,9 @@ private fun Screen(vm: MainViewModel) {
         vm.add(text, sel) { ok -> if (ok) { text = ""; error = null } else error = "ثبت کار انجام نشد." }
     }
 
-    Column(Modifier.fillMaxSize().padding(horizontal = 16.dp, vertical = 12.dp)) {
+    if (showAll) {
+        AllTasksScreen(vm, today, onBack = { showAll = false }, onEdit = { editing = it })
+    } else Column(Modifier.fillMaxSize().padding(horizontal = 16.dp, vertical = 12.dp)) {
         Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
             TextButton(onClick = { vm.cycleTheme() }) {
                 Text(when (theme) { "light" -> "روشن"; "dark" -> "تاریک"; else -> "خودکار" })
@@ -147,6 +152,7 @@ private fun Screen(vm: MainViewModel) {
             if (sel != today) TextButton(onClick = { vm.select(today) }) { Text("امروز") }
             TextButton(onClick = { vm.select(sel.plusDays(1)) }) { Text("روز بعد") }
         }
+        TextButton(onClick = { showAll = true }, Modifier.fillMaxWidth()) { Text("🔎 همه‌ی کارها (جستجو)") }
         if (overdue.isNotEmpty() && !showOverdue) {
             TextButton(onClick = { showOverdue = true }, Modifier.fillMaxWidth()) {
                 Text("${faNum(overdue.size)} کار نیازمند تعیین تکلیف")

@@ -31,6 +31,7 @@ class TaskRepository(private val db: AppDb, private val scheduler: AlarmSchedule
 
     fun day(d: String) = dao.observeDay(d)
     fun overdue(today: String) = dao.observeOverdue(today)
+    fun all() = dao.observeAll()
 
     suspend fun add(title: String, date: String): Boolean {
         val t = title.trim().take(200)

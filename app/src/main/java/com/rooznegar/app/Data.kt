@@ -59,6 +59,9 @@ interface TaskDao {
     )
     fun observeOverdue(today: String): Flow<List<TaskEntity>>
 
+    @Query("SELECT * FROM tasks WHERE archived = 0 ORDER BY scheduledDate DESC, completed ASC, priority DESC, sortOrder ASC")
+    fun observeAll(): Flow<List<TaskEntity>>
+
     @Query("SELECT * FROM tasks WHERE reminderAt IS NOT NULL AND completed = 0 AND archived = 0 AND reminderAt > :now")
     suspend fun upcomingReminders(now: Long): List<TaskEntity>
 

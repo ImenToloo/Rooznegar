@@ -10,7 +10,7 @@
 <meta name="mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-title" content="روزنگار">
 <meta name="apple-mobile-web-app-status-bar-style" content="default">
-<meta name="theme-color" content="#0b5a3f">
+<meta name="theme-color" content="#ffffff">
 <style>
 :root{--bg:#FAFAFC;--card:#fff;--pri:#5146A8;--onpri:#fff;--tx:#191A22;--tx2:#777B89;--ln:#ECECF2;--warn:#B7791F;--red:#D93025}
 @media (prefers-color-scheme:dark){:root:not([data-theme=light]){--bg:#111318;--card:#191C23;--pri:#A99CFF;--onpri:#111318;--tx:#F3F3F7;--tx2:#A0A4B2;--ln:#292D37;--warn:#E5B567}}
@@ -43,7 +43,7 @@ h2{font-size:15px;font-weight:500;color:var(--tx2);margin:0 4px 8px}
 .f{display:flex;align-items:center;justify-content:space-between;gap:8px;margin:10px 0}
 .f input[type=text],.f input[type=time]{background:var(--card);border:1px solid var(--ln);border-radius:10px;padding:8px;min-height:40px}
 .f input[type=text]{width:100%}
-.err{color:var(--red);font-size:13px}
+.err{color:var(--red);font-size:13px}.note{color:var(--tx2);font-size:12px;margin:4px 0}
 .cal{display:grid;grid-template-columns:repeat(7,1fr);gap:2px;text-align:center}.cal button{min-width:0;min-height:42px;padding:0;position:relative}
 .cal .w{font-size:12px;color:var(--tx2);padding:6px 0}.cal .n{font-size:11px;color:var(--pri);position:absolute;bottom:0;left:0;right:0}
 .cal .tdy{border:1px solid var(--pri)}.cal .sel{background:var(--pri);color:var(--onpri)}.cal .sel .n{color:var(--onpri)}
@@ -57,11 +57,11 @@ h2{font-size:15px;font-weight:500;color:var(--tx2);margin:0 4px 8px}
   <div class="top"><button class="ic" id="thm" aria-label="تغییر حالت نمایش"></button><div class="hd" id="hd" role="button" tabindex="0"><b id="jd"></b><small id="gd"></small></div><button class="pri" id="nx" aria-label="روز بعد" style="font-size:22px">‹</button></div>
   <div class="top"><span style="width:44px"></span><button class="pri" id="td" style="font-size:14px">امروز</button><button class="pri" id="pv" aria-label="روز قبل" style="font-size:22px">›</button></div>
   <div class="add"><input id="in" placeholder="افزودن کار جدید..." maxlength="200" enterkeyhint="done"><button id="ad" aria-label="افزودن">+</button></div>
+  <button class="pri" id="all" style="width:100%;border:1px solid var(--ln);margin-bottom:10px">🔎 همه‌ی کارها (جستجو)</button>
   <h2 id="ct"></h2><div class="list" id="ls"></div>
   <div class="foot"><button id="ex">خروجی پشتیبان</button><button id="im">بازیابی پشتیبان</button><input type="file" id="fi" accept=".json,application/json" hidden></div>
   <div class="hint" id="hint"></div>
 </main>
-<div id="ovl"></div>
 <script>
 const TZ='Asia/Tehran',$=id=>document.getElementById(id);
 const esc=s=>String(s).replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
@@ -78,6 +78,10 @@ try{const r=localStorage.getItem('rooznegar');if(r)db=Object.assign(db,JSON.pars
 const save=()=>{try{localStorage.setItem('rooznegar',JSON.stringify(db));return true}catch(e){alert('ذخیره‌سازی در این مرورگر ممکن نیست.');return false}};
 const uid=()=>Date.now().toString(36)+Math.random().toString(36).slice(2,7);
 const find=id=>db.tasks.find(t=>t.id===id);
+let allRefresh=null;
+/* reminder time (Tehran = UTC+3:30, no DST) */
+const remMs=t=>{if(!t.rem)return null;if(t.snooze)return t.snooze;const[y,m,d]=t.date.split('-').map(Number),[h,mi]=t.rem.split(':').map(Number);return Date.UTC(y,m-1,d,h,mi)-210*60000};
+const fixAl=t=>{const ms=remMs(t);t.al=(ms&&ms<=Date.now())?ms:null};
 function theme(){const r=document.documentElement;db.theme==='auto'?r.removeAttribute('data-theme'):r.setAttribute('data-theme',db.theme);$('thm').textContent={auto:'خودکار',light:'روشن',dark:'تاریک'}[db.theme]}
 $('thm').onclick=()=>{db.theme={auto:'light',light:'dark',dark:'auto'}[db.theme];save();theme()};
 function render(){
@@ -85,7 +89,8 @@ function render(){
   $('td').style.visibility=cur===nowD()?'hidden':'visible';
   const L=db.tasks.filter(t=>t.date===cur&&!t.archived).sort((a,b)=>a.done-b.done||(b.pri?1:0)-(a.pri?1:0)||a.order-b.order);
   $('ct').textContent=(cur===nowD()?'کارهای امروز':'کارهای این روز')+' ('+fn(L.length)+')';
-  $('ls').innerHTML=L.length?L.map(t=>`<div class="t ${t.done?'done':''}"><button class="cb" data-c="${t.id}" role="checkbox" aria-checked="${!!t.done}" aria-label="انجام شد"><i>${t.done?'✓':''}</i></button><span data-e="${t.id}">${t.pri?'🚩 ':''}${esc(t.title)}${t.rem&&!t.done?`<em>⏰ ${fd(t.rem)}</em>`:''}${t.orig!==t.date?`<em>از ${fa(t.orig,{day:'numeric',month:'long'})}</em>`:''}</span></div>`).join(''):'<div class="empty">برای این روز کاری ثبت نشده است.</div>';
+  $('ls').innerHTML=L.length?L.map(t=>`<div class="t ${t.done?'done':''}"><button class="cb" data-c="${t.id}" role="checkbox" aria-checked="${!!t.done}" aria-label="انجام شد"><i>${t.done?'✓':''}</i></button><span data-e="${t.id}">${t.pri?'🚩 ':''}${esc(t.title)}${t.rem&&!t.done?`<em>⏰ ${fd(t.rem)}${t.snooze?' (تعویق)':''}</em>`:''}${t.orig!==t.date?`<em>از ${fa(t.orig,{day:'numeric',month:'long'})}</em>`:''}</span></div>`).join(''):'<div class="empty">برای این روز کاری ثبت نشده است.</div>';
+  if(allRefresh)allRefresh();
 }
 $('ls').onclick=e=>{
   const c=e.target.closest('[data-c]'),x=e.target.closest('[data-e]');
@@ -98,7 +103,7 @@ function addTask(){
   db.tasks.push({id:uid(),title:v,done:false,orig:cur,date:cur,order:o,created:Date.now(),hist:[]});
   if(save()){$('in').value='';render();$('in').focus()}else db.tasks.pop();
 }
-$('ad').onclick=addTask;$('in').onkeydown=e=>{if(e.key==='Enter')addTask()};
+$('ad').onclick=addTask;$('all').onclick=()=>allView();$('in').onkeydown=e=>{if(e.key==='Enter')addTask()};
 $('nx').onclick=()=>{cur=add(cur,1);render()};$('pv').onclick=()=>{cur=add(cur,-1);render()};$('td').onclick=()=>{cur=nowD();render()};
 $('hd').onclick=()=>pick(cur,d=>{cur=d;render()});$('hd').onkeydown=e=>{if(e.key==='Enter')pick(cur,d=>{cur=d;render()})};
 
@@ -114,7 +119,6 @@ function pick(sel,cb){
     else if(p){o.remove();cb(p.dataset.p)}else if(e.target===o||e.target.closest('[data-x]'))o.remove()};
   draw();document.body.appendChild(o);
 }
-/* edit sheet */
 function edit(id){
   const t=find(id);if(!t)return;let d=t.date;
   const o=document.createElement('div');o.className='ov';
@@ -123,50 +127,84 @@ function edit(id){
   <label class="f"><span>🚩 مهم (بالاتر نمایش داده شود)</span><input type="checkbox" id="e-p" ${t.pri?'checked':''}></label>
   <div class="f"><span id="e-d"></span><button class="pri" id="e-dc">تغییر تاریخ</button></div>
   <div class="f"><span>⏰ ساعت یادآور</span><input type="time" id="e-r" value="${t.rem||''}"></div>
+  <div class="note">یادآور با صدا و لرزش فقط وقتی برنامه باز است کار می‌کند. برای هشدار وقتی برنامه بسته است، «افزودن به تقویم آیفون» را بزنید.</div>
   <div class="err" id="e-err"></div>
   <div class="bs"><button class="p" id="e-s">ذخیره</button><button id="e-ics">افزودن به تقویم آیفون</button><button id="e-x">انصراف</button><button id="e-del" style="color:var(--red)">حذف</button></div></div>`;
   document.body.appendChild(o);
-  const sd=()=>o.querySelector('#e-d').textContent='تاریخ: '+fa(d,{day:'numeric',month:'long',year:'numeric'});sd();
-  const q=s=>o.querySelector(s);
+  const q=s=>o.querySelector(s),sd=()=>q('#e-d').textContent='تاریخ: '+fa(d,{day:'numeric',month:'long',year:'numeric'});sd();
   q('#e-dc').onclick=()=>pick(d,x=>{d=x;sd()});
   q('#e-x').onclick=()=>o.remove();
   q('#e-del').onclick=()=>{if(confirm('این کار حذف شود؟')){db.tasks=db.tasks.filter(x=>x.id!==id);save();o.remove();render()}};
   const apply=()=>{const ti=q('#e-t').value.trim();if(!ti){q('#e-err').textContent='عنوان نمی‌تواند خالی باشد.';return false}
     if(d!==t.date){t.hist.push({k:id+'|'+t.date,from:t.date,to:d,at:Date.now(),why:'edit'});t.order=Math.max(0,...db.tasks.filter(x=>x.date===d).map(x=>x.order))+1;t.date=d;delete db.skip[id]}
-    t.title=ti;t.pri=q('#e-p').checked;t.rem=q('#e-r').value||null;return save()};
+    t.title=ti;t.pri=q('#e-p').checked;const nr=q('#e-r').value||null;if(nr!==t.rem)t.snooze=null;t.rem=nr;fixAl(t);return save()};
   q('#e-s').onclick=()=>{if(apply()){o.remove();render()}};
   q('#e-ics').onclick=()=>{if(!q('#e-r').value){q('#e-err').textContent='اول ساعت یادآور را انتخاب کنید.';return}if(apply()){render();ics(t)}};
 }
 function ics(t){
-  const [y,mo,da]=t.date.split('-').map(Number),[h,mi]=t.rem.split(':').map(Number);
-  const f=ms=>new Date(ms).toISOString().replace(/[-:]/g,'').slice(0,15)+'Z';
-  const st=Date.UTC(y,mo-1,da,h,mi)-210*60000; // Tehran = UTC+3:30
-  const s=['BEGIN:VCALENDAR','VERSION:2.0','PRODID:-//Rooznegar//FA','BEGIN:VEVENT','UID:'+t.id+'@rooznegar','DTSTAMP:'+f(Date.now()),'DTSTART:'+f(st),'DTEND:'+f(st+30*60000),'SUMMARY:'+t.title.replace(/[\\;,]/g,m=>'\\'+m).replace(/\n/g,' '),'BEGIN:VALARM','ACTION:DISPLAY','DESCRIPTION:'+'یادآوری','TRIGGER:PT0S','END:VALARM','END:VEVENT','END:VCALENDAR'].join('\r\n');
+  const ms=Date.UTC(...t.date.split('-').map((v,i)=>i==1?v-1:+v),...t.rem.split(':').map(Number))-210*60000;
+  const f=x=>new Date(x).toISOString().replace(/[-:]/g,'').slice(0,15)+'Z';
+  const s=['BEGIN:VCALENDAR','VERSION:2.0','PRODID:-//Rooznegar//FA','BEGIN:VEVENT','UID:'+t.id+'@rooznegar','DTSTAMP:'+f(Date.now()),'DTSTART:'+f(ms),'DTEND:'+f(ms+30*60000),'SUMMARY:'+t.title.replace(/[\\;,]/g,m=>'\\'+m).replace(/\n/g,' '),'BEGIN:VALARM','ACTION:DISPLAY','DESCRIPTION:یادآوری','TRIGGER:PT0S','END:VALARM','END:VEVENT','END:VCALENDAR'].join('\r\n');
   const a=document.createElement('a');a.href=URL.createObjectURL(new Blob([s],{type:'text/calendar'}));a.download='rooznegar-'+t.id+'.ics';document.body.appendChild(a);a.click();a.remove();
+}
+/* all tasks page: every day, searchable */
+function allView(){
+  const o=document.createElement('div');o.className='ov';o.style.zIndex=8;let q='',fl='all';
+  const nz=s=>String(s).toLowerCase().replace(/ي/g,'ی').replace(/ك/g,'ک').replace(/[۰-۹]/g,d=>'۰۱۲۳۴۵۶۷۸۹'.indexOf(d)).replace(/[٠-٩]/g,d=>'٠١٢٣٤٥٦٧٨٩'.indexOf(d));
+  o.innerHTML='<div class="sh" style="height:92%"><div class="nav"><b>همه‌ی کارها <span id="a-n"></span></b><button data-x>بستن</button></div><div class="f"><input type="text" id="a-q" placeholder="جستجو در عنوان کارها..."></div><div class="bs" id="a-f"></div><div id="a-l"></div></div>';
+  const $q=s=>o.querySelector(s);
+  const draw=()=>{const T=nowD();
+    $q('#a-f').innerHTML=[['all','همه'],['open','باقی‌مانده'],['done','انجام‌شده'],['late','معوق']].map(([k,l])=>`<button data-f="${k}" class="${fl===k?'p':''}">${l}</button>`).join('');
+    const L=db.tasks.filter(t=>!t.archived&&(!q||nz(t.title).includes(q))&&({all:1,open:!t.done,done:t.done,late:!t.done&&t.date<T}[fl])).sort((a,b)=>a.date<b.date?1:a.date>b.date?-1:a.done-b.done||(b.pri?1:0)-(a.pri?1:0)||a.order-b.order);
+    $q('#a-n').textContent='('+fn(L.length)+')';
+    const g={};L.forEach(t=>(g[t.date]=g[t.date]||[]).push(t));
+    $q('#a-l').innerHTML=L.length?Object.keys(g).map(d=>`<h2 style="margin-top:14px;color:var(--pri)">${fa(d,{day:'numeric',month:'long',year:'numeric'})} · ${fn(g[d].filter(t=>!t.done).length)} باقی‌مانده، ${fn(g[d].filter(t=>t.done).length)} انجام‌شده</h2><div class="list">${g[d].map(t=>`<div class="t ${t.done?'done':''}"><button class="cb" data-c="${t.id}" role="checkbox" aria-checked="${!!t.done}" aria-label="انجام شد"><i>${t.done?'✓':''}</i></button><span data-e="${t.id}">${t.pri?'🚩 ':''}${esc(t.title)}<em>${t.done?'✓ انجام‌شده':t.date<T?'معوق':'باقی‌مانده'}</em></span></div>`).join('')}</div>`).join(''):'<div class="empty">کاری پیدا نشد.</div>';
+  };
+  o.onclick=e=>{const c=e.target.closest('[data-c]'),x=e.target.closest('[data-e]'),f=e.target.closest('[data-f]');
+    if(e.target.closest('[data-x]')||e.target===o){allRefresh=null;o.remove();return}
+    if(f){fl=f.dataset.f;draw()}
+    if(c){const t=find(c.dataset.c);t.done=!t.done;t.doneAt=t.done?Date.now():null;save();render()}
+    if(x)edit(x.dataset.e)};
+  $q('#a-q').oninput=e=>{q=nz(e.target.value.trim());draw()};
+  allRefresh=draw;draw();document.body.appendChild(o);
+}
+/* in-app alarm: sound + vibration (where supported) + snooze */
+function beep(){try{const a=new (window.AudioContext||window.webkitAudioContext)();let t=a.currentTime;for(let i=0;i<4;i++){const o=a.createOscillator(),g=a.createGain();o.frequency.value=880;o.connect(g);g.connect(a.destination);g.gain.setValueAtTime(.25,t+i*.5);g.gain.setValueAtTime(0,t+i*.5+.3);o.start(t+i*.5);o.stop(t+i*.5+.35)}}catch(e){}try{navigator.vibrate&&navigator.vibrate([400,200,400,200,600])}catch(e){}}
+const dueList=()=>{const n=Date.now();return db.tasks.filter(t=>{const ms=remMs(t);return ms&&!t.done&&!t.archived&&n>=ms&&t.al!==ms})};
+let alOpen=false;
+function tick(){
+  if(alOpen||!dueList().length)return;alOpen=true;beep();
+  const o=document.createElement('div');o.className='ov';o.style.zIndex=30;
+  const draw=()=>{const L=dueList();if(!L.length){o.remove();alOpen=false;render();return}
+    o.innerHTML=`<div class="sh"><h3>⏰ یادآوری</h3>${L.map(t=>`<div class="oc"><b>${t.pri?'🚩 ':''}${esc(t.title)}</b><div class="bs"><button class="p" data-a="d" data-i="${t.id}">انجام شد</button><button data-a="z10" data-i="${t.id}">۱۰ دقیقه بعد</button><button data-a="z60" data-i="${t.id}">۱ ساعت بعد</button><button data-a="q" data-i="${t.id}">بستن</button></div></div>`).join('')}</div>`};
+  o.onclick=e=>{const b=e.target.closest('[data-a]');if(!b)return;const t=find(b.dataset.i),a=b.dataset.a;if(!t)return;
+    if(a==='d'){t.done=true;t.doneAt=Date.now()}else if(a[0]==='z'){t.snooze=Date.now()+(+a.slice(1))*60000;t.al=null}else t.al=remMs(t);
+    save();draw()};
+  draw();document.body.appendChild(o);
 }
 /* rollover */
 const overdue=()=>{const T=nowD();return db.tasks.filter(t=>!t.done&&!t.archived&&t.date<T&&db.skip[t.id]!==T).sort((a,b)=>a.date<b.date?-1:1)};
 function move(id,to){const t=find(id);if(!t||t.done||t.date===to)return false;const old=t.date;
-  t.hist.push({k:id+'|'+old,from:old,to,at:Date.now(),why:'rollover'});t.date=to;t.order=Math.max(0,...db.tasks.filter(x=>x.date===to).map(x=>x.order))+1;
+  t.hist.push({k:id+'|'+old,from:old,to,at:Date.now(),why:'rollover'});t.date=to;t.order=Math.max(0,...db.tasks.filter(x=>x.date===to).map(x=>x.order))+1;t.snooze=null;fixAl(t);
   if(!save()){t.date=old;t.hist.pop();return false}return true}
 let ovOpen=false;
 function checkOverdue(){
   const T=nowD();if(T!==lastT){lastT=T;if(cur<T)cur=T}
-  if(!overdue().length||ovOpen){render();return}
+  if(!overdue().length||ovOpen){render();tick();return}
   ovOpen=true;const o=document.createElement('div');o.className='ov';
-  const draw=()=>{const L=overdue();if(!L.length){o.remove();ovOpen=false;render();return}
+  const draw=()=>{const L=overdue();if(!L.length){o.remove();ovOpen=false;render();tick();return}
     o.innerHTML=`<div class="sh"><h3>${fn(L.length)} کار باقی مانده است</h3><p>برای هر کار تاریخ جدید را خودتان تعیین کنید.</p>${L.map(t=>`<div class="oc"><b>${t.pri?'🚩 ':''}${esc(t.title)}</b><br><small>از ${fa(t.date,{day:'numeric',month:'long'})} · ${fn(Math.round((P(T)-P(t.date))/864e5))} روز تأخیر</small><div class="bs"><button class="p" data-m="${t.id}" data-to="${T}">انتقال به امروز</button><button data-m="${t.id}" data-to="${add(T,1)}">انتقال به فردا</button><button data-k="${t.id}">انتخاب تاریخ</button><button data-s="${t.id}">فعلاً نه</button></div></div>`).join('')}<div class="bs"><button data-x>بستن</button></div></div>`};
   o.onclick=e=>{const m=e.target.closest('[data-m]'),k=e.target.closest('[data-k]'),s=e.target.closest('[data-s]');
     if(m){move(m.dataset.m,m.dataset.to);draw()}
     if(k){const id=k.dataset.k;pick(T,d=>{move(id,d);draw()})}
     if(s){db.skip[s.dataset.s]=T;save();draw()}
-    if(e.target.closest('[data-x]')){o.remove();ovOpen=false;render()}};
+    if(e.target.closest('[data-x]')){o.remove();ovOpen=false;render();tick()}};
   draw();document.body.appendChild(o);render();
 }
-document.addEventListener('visibilitychange',()=>{if(!document.hidden)checkOverdue()});
-setInterval(()=>{if(nowD()!==lastT)checkOverdue()},30000);
+document.addEventListener('visibilitychange',()=>{if(!document.hidden){checkOverdue();tick()}});
+setInterval(()=>{if(nowD()!==lastT)checkOverdue();tick()},15000);
 /* backup */
-$('ex').onclick=()=>{const a=document.createElement('a');a.href=URL.createObjectURL(new Blob([JSON.stringify({v:1,tasks:db.tasks},null,1)],{type:'application/json'}));a.download='rooznegar-backup-'+nowD()+'.json';document.body.appendChild(a);a.click();a.remove()};
+$('ex').onclick=()=>{const a=document.createElement('a');a.href=URL.createObjectURL(new Blob([JSON.stringify({v:2,tasks:db.tasks},null,1)],{type:'application/json'}));a.download='rooznegar-backup-'+nowD()+'.json';document.body.appendChild(a);a.click();a.remove()};
 $('im').onclick=()=>$('fi').click();
 $('fi').onchange=async e=>{const f=e.target.files[0];if(!f)return;
   try{const j=JSON.parse(await f.text());if(!Array.isArray(j.tasks))throw 0;
@@ -174,7 +212,6 @@ $('fi').onchange=async e=>{const f=e.target.files[0];if(!f)return;
     j.tasks.forEach(t=>{if(t&&t.id&&t.title&&/^\d{4}-\d\d-\d\d$/.test(t.date)){if(ids.has(t.id))sk++;else{db.tasks.push(Object.assign({hist:[],order:0,orig:t.date},t));n++}}else sk++});
     save();render();alert(fn(n)+' کار وارد شد، '+fn(sk)+' مورد تکراری یا نامعتبر نادیده گرفته شد.')}
   catch(_){alert('فایل پشتیبان معتبر نیست؛ اطلاعات فعلی تغییری نکرد.')}e.target.value=''};
-/* install hint */
 if(/iphone|ipad/i.test(navigator.userAgent)&&!navigator.standalone)$('hint').textContent='برای نصب: دکمه‌ی Share در Safari ← Add to Home Screen';
 if('serviceWorker' in navigator)navigator.serviceWorker.register('sw.js').catch(()=>{});
 try{navigator.storage&&navigator.storage.persist&&navigator.storage.persist()}catch(e){}
